@@ -49,17 +49,19 @@ public class SignUpActivity extends AppCompatActivity {
 
             String encodedPassword = handler.encoder.encode(password);
 
+
             runOnUiThread(() ->{
                 SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
                 SharedPreferences.Editor editor = prefs.edit();
 
                 editor.putString("username", username);
                 editor.putString("password", encodedPassword);
+                editor.putBoolean("isLoggedIn", true);
                 editor.apply();
 
-                // Go to login screen after signup
-                // Possibly change this to main activity since login twice is tedious
-                startActivity(new Intent(this, LoginActivity.class));
+                // Go to main screen after signup
+                // NOT TESTED
+                startActivity(new Intent(this, MainActivity.class));
                 finish();
             });
 
