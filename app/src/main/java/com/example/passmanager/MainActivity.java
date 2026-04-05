@@ -15,10 +15,15 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.lang.reflect.Type;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -32,8 +37,10 @@ public class MainActivity extends AppCompatActivity {
     // Perhaps a map of (user, [credential]), requiring credential object etc.
     ListView itemList;
     Button btnAddItem;
-
-    ArrayList<String> items;
+    String masterPassword;
+    ArrayList<Credentials> items;
+    ArrayList<String> displayList;
+    ArrayList<Boolean> visible;
     ArrayAdapter<String> adapter;
     PasswordHandler handler = new PasswordHandler();
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -51,22 +58,66 @@ public class MainActivity extends AppCompatActivity {
         itemList = findViewById(R.id.itemList);
         btnAddItem = findViewById(R.id.btnAddItem);
 
-        // NORMAL CLICK TO SEE PASSWORD?
-        items = new ArrayList<>();
+        SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
+        masterPassword = prefs.getString("password", "");
+
+        // Load items from storage/initialize if not found
+        loadItems();
+
+        visible = new ArrayList<>();
+        // Display the loaded items
+        displayList = new ArrayList<>();
+        for (Credentials c : items) {
+            visible.add(false);
+            displayList.add(c.getWebsite() + " - " + c.getUsername());
+        }
 
         // FUNCTION TO RETRIEVE ITEMS FROM STORAGE
-        items.add("Test item");
+        items.add(new Credentials("testsite", "testname", "testpass"));
 
         adapter = new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_list_item_1,
-                items
+                displayList
         );
 
         itemList.setAdapter(adapter);
         itemList.setOnItemLongClickListener((parent, view, position, id) -> {
             showDeleteDialog(position);
             return true;
+        });
+
+        // If visible when pressed, turn invisible and vice versa
+        itemList.setOnItemClickListener((parent, view, position, id) -> {
+
+            Credentials creds = items.get(position);
+
+            if (visible.get(position)){
+
+            }
+            else{
+                try {
+                    PasswordHandler handler = new PasswordHandler();
+
+                    byte[] salt = Base64.getDecoder().decode(creds.getSalt());
+                    byte[] ivBytes = Base64.getDecoder().decode(creds.getIv());
+
+                    SecretKey key = handler.getKeyFromPassword(masterPassword, salt);
+                    GCMParameterSpec iv = new GCMParameterSpec(128, ivBytes);
+
+                    String decrypted = handler.decrypt(
+                            "AES/GCM/NoPadding",
+                            creds.getPassword(),
+                            key,
+                            iv
+                    );
+
+                    showPasswordDialog(decrypted);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         });
 
         btnAddItem.setOnClickListener(new View.OnClickListener() {
@@ -103,6 +154,8 @@ public class MainActivity extends AppCompatActivity {
         builder.setPositiveButton("Delete", (dialog, which) -> {
 
             items.remove(position);
+            displayList.remove(position);
+            saveItems();
             adapter.notifyDataSetChanged();
 
         });
@@ -138,18 +191,19 @@ public class MainActivity extends AppCompatActivity {
             random.nextBytes(salt);
 
             try {
-                key = handler.getKeyFromPassword(password, salt);
+                key = handler.getKeyFromPassword(masterPassword, salt);
 
                 GCMParameterSpec iv = handler.generateIv();
                 String cipher = handler.encrypt(algorithm, password, key, iv);
 
-                // Are these even needed or should I just do something else?
-                Credentials creds = new Credentials();
-                creds.setWebsite(name);
-                creds.setUsername(info);
-                creds.setPassword(cipher);
+                // Store credentials into object
+                Credentials creds = new Credentials(name, info, cipher);
+                creds.setIv(Base64.getEncoder().encodeToString(iv.getIV()));
+                creds.setSalt(Base64.getEncoder().encodeToString(salt));
 
-                items.add(name + " - " + info);
+                items.add(creds);
+                displayList.add(creds.getWebsite() + " - " + creds.getUsername());
+                saveItems();
                 adapter.notifyDataSetChanged();
 
             } catch (Exception e) {
@@ -163,6 +217,33 @@ public class MainActivity extends AppCompatActivity {
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
 
         builder.show();
+    }
+
+    // Load the items from JSON into itemlist
+    private void loadItems() {
+        SharedPreferences prefs = getSharedPreferences("ItemPrefs", MODE_PRIVATE);
+
+        Gson gson = new Gson();
+        String json = prefs.getString("item_list", null);
+
+        if (json != null) {
+            Type type = new TypeToken<ArrayList<Credentials>>() {}.getType();
+            items = gson.fromJson(json, type);
+        } else {
+            items = new ArrayList<>();
+        }
+    }
+
+    // Save the password items as stringified JSON
+    private void saveItems() {
+        SharedPreferences prefs = getSharedPreferences("ItemPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        Gson gson = new Gson();
+        String json = gson.toJson(items);
+
+        editor.putString("item_list", json);
+        editor.apply();
     }
 
     // Log out when losing focus or closing application

@@ -49,7 +49,6 @@ public class SignUpActivity extends AppCompatActivity {
 
             String encodedPassword = handler.encoder.encode(password);
 
-
             runOnUiThread(() ->{
                 SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
                 SharedPreferences.Editor editor = prefs.edit();

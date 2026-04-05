@@ -4,8 +4,22 @@ public class Credentials {
     private String website;
     private String username;
     private String password;
+    private String iv;
+    private String salt;
 
+    public Credentials(String web, String name, String pass){
+        this.website = web;
+        this.username = name;
+        this.password = pass;
+    }
 
+    public String getIv() {
+        return iv;
+    }
+
+    public String getSalt() {
+        return salt;
+    }
 
     public String getPassword() {
         return password;
@@ -27,5 +41,13 @@ public class Credentials {
 
     public void setWebsite(String website) {
         this.website = website;
+    }
+
+    public void setIv(String iv) {
+        this.iv = iv;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
 }
