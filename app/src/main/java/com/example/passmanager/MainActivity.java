@@ -40,7 +40,6 @@ public class MainActivity extends AppCompatActivity {
     String masterPassword;
     ArrayList<Credentials> items;
     ArrayList<String> displayList;
-    ArrayList<Boolean> visible;
     ArrayAdapter<String> adapter;
     PasswordHandler handler = new PasswordHandler();
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -64,15 +63,15 @@ public class MainActivity extends AppCompatActivity {
         // Load items from storage/initialize if not found
         loadItems();
 
-        visible = new ArrayList<>();
         // Display the loaded items
         displayList = new ArrayList<>();
         for (Credentials c : items) {
-            visible.add(false);
             displayList.add(c.getWebsite() + " - " + c.getUsername());
         }
 
-        // FUNCTION TO RETRIEVE ITEMS FROM STORAGE
+        // does not add on first startup?? also cannot be seen with single press
+        // subsequent openings show this correctly as the first one and then indexing works
+        // on first startup shows the -1 index info when pressed
         items.add(new Credentials("testsite", "testname", "testpass"));
 
         adapter = new ArrayAdapter<>(
@@ -87,37 +86,37 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
 
-        // If visible when pressed, turn invisible and vice versa
         itemList.setOnItemClickListener((parent, view, position, id) -> {
 
             Credentials creds = items.get(position);
 
-            if (visible.get(position)){
+            executor.execute(() ->{
 
+            try {
+                PasswordHandler handler = new PasswordHandler();
+
+                byte[] salt = Base64.getDecoder().decode(creds.getSalt());
+                byte[] ivBytes = Base64.getDecoder().decode(creds.getIv());
+
+                SecretKey key = handler.getKeyFromPassword(masterPassword, salt);
+                GCMParameterSpec iv = new GCMParameterSpec(128, ivBytes);
+
+                String decrypted = handler.decrypt(
+                        "AES/GCM/NoPadding",
+                        creds.getPassword(),
+                        key,
+                        iv
+                );
+
+                runOnUiThread(() ->{
+                    showPasswordDialog(decrypted, creds);
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            else{
-                try {
-                    PasswordHandler handler = new PasswordHandler();
 
-                    byte[] salt = Base64.getDecoder().decode(creds.getSalt());
-                    byte[] ivBytes = Base64.getDecoder().decode(creds.getIv());
-
-                    SecretKey key = handler.getKeyFromPassword(masterPassword, salt);
-                    GCMParameterSpec iv = new GCMParameterSpec(128, ivBytes);
-
-                    String decrypted = handler.decrypt(
-                            "AES/GCM/NoPadding",
-                            creds.getPassword(),
-                            key,
-                            iv
-                    );
-
-                    showPasswordDialog(decrypted);
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
+            });
         });
 
         btnAddItem.setOnClickListener(new View.OnClickListener() {
@@ -142,6 +141,18 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(MainActivity.this, LoginActivity.class);
         startActivity(intent);
         finish();
+    }
+
+    private void showPasswordDialog(String pass, Credentials creds) {
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        builder.setTitle("Credentials for " + creds.getWebsite());
+        builder.setMessage("Username: " + creds.getUsername() + "\nPassword: " +pass);
+
+        builder.setNegativeButton("Close", (dialog, which) -> dialog.dismiss());
+
+        builder.show();
     }
 
     private void showDeleteDialog(int position) {

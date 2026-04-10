@@ -48,5 +48,6 @@ dependencies {
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
     implementation(libs.spring.security.crypto)
+    implementation("com.google.code.gson:gson:2.13.2")
     implementation("commons-logging:commons-logging-api:1.1")
 }
