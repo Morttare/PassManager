@@ -63,16 +63,23 @@ public class MainActivity extends AppCompatActivity {
         // Load items from storage/initialize if not found
         loadItems();
 
+        // does not add on first startup?? also cannot be seen with single press
+        // subsequent openings show this correctly as the first one and then indexing works
+        // on first startup shows the -1 index info when pressed
+        // needs to have some items before refreshing adds the test item??
+        // apparently they get added on startup but only visible once another item has been added
+        items.add(new Credentials("testsite", "testname", "testpass"));
+
+
+        // this fixes the visibility, not necessarily the indexing
+        saveItems();
+        loadItems();
+
         // Display the loaded items
         displayList = new ArrayList<>();
         for (Credentials c : items) {
             displayList.add(c.getWebsite() + " - " + c.getUsername());
         }
-
-        // does not add on first startup?? also cannot be seen with single press
-        // subsequent openings show this correctly as the first one and then indexing works
-        // on first startup shows the -1 index info when pressed
-        items.add(new Credentials("testsite", "testname", "testpass"));
 
         adapter = new ArrayAdapter<>(
                 this,
@@ -86,37 +93,9 @@ public class MainActivity extends AppCompatActivity {
             return true;
         });
 
+        // this doesn't work for test items??
         itemList.setOnItemClickListener((parent, view, position, id) -> {
-
-            Credentials creds = items.get(position);
-
-            executor.execute(() ->{
-
-            try {
-                PasswordHandler handler = new PasswordHandler();
-
-                byte[] salt = Base64.getDecoder().decode(creds.getSalt());
-                byte[] ivBytes = Base64.getDecoder().decode(creds.getIv());
-
-                SecretKey key = handler.getKeyFromPassword(masterPassword, salt);
-                GCMParameterSpec iv = new GCMParameterSpec(128, ivBytes);
-
-                String decrypted = handler.decrypt(
-                        "AES/GCM/NoPadding",
-                        creds.getPassword(),
-                        key,
-                        iv
-                );
-
-                runOnUiThread(() ->{
-                    showPasswordDialog(decrypted, creds);
-                });
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            });
+            showPasswordDialog(position);
         });
 
         btnAddItem.setOnClickListener(new View.OnClickListener() {
@@ -153,6 +132,38 @@ public class MainActivity extends AppCompatActivity {
         builder.setNegativeButton("Close", (dialog, which) -> dialog.dismiss());
 
         builder.show();
+    }
+
+    private void showPasswordDialog(int position){
+        Credentials creds = items.get(position);
+
+        executor.execute(() ->{
+
+            try {
+                PasswordHandler handler = new PasswordHandler();
+
+                byte[] salt = Base64.getDecoder().decode(creds.getSalt());
+                byte[] ivBytes = Base64.getDecoder().decode(creds.getIv());
+
+                SecretKey key = handler.getKeyFromPassword(masterPassword, salt);
+                GCMParameterSpec iv = new GCMParameterSpec(128, ivBytes);
+
+                String decrypted = handler.decrypt(
+                        "AES/GCM/NoPadding",
+                        creds.getPassword(),
+                        key,
+                        iv
+                );
+
+                runOnUiThread(() ->{
+                    showPasswordDialog(decrypted, creds);
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        });
     }
 
     private void showDeleteDialog(int position) {
@@ -215,6 +226,7 @@ public class MainActivity extends AppCompatActivity {
                 items.add(creds);
                 displayList.add(creds.getWebsite() + " - " + creds.getUsername());
                 saveItems();
+                loadItems();
                 adapter.notifyDataSetChanged();
 
             } catch (Exception e) {
