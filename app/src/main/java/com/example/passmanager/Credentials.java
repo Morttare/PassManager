@@ -1,5 +1,9 @@
 package com.example.passmanager;
 
+/*
+Class for storing user credentials,
+as well as the initialization vector and salt used for encrypting the password
+ */
 public class Credentials {
     private String website;
     private String username;
@@ -29,18 +33,6 @@ public class Credentials {
     }
     public String getWebsite() {
         return website;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public void setWebsite(String website) {
-        this.website = website;
     }
 
     public void setIv(String iv) {

@@ -13,6 +13,9 @@ import java.util.concurrent.Executors;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+/*
+Class for handling the login screen and -activity
+ */
 public class LoginActivity extends AppCompatActivity {
 
     EditText etPassword;
@@ -26,31 +29,26 @@ public class LoginActivity extends AppCompatActivity {
 
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
 
+        // If user is already logged in, open main screen
         if(prefs.getBoolean("isLoggedIn", true)){
             startActivity(new Intent(this, MainActivity.class));
             finish();
         }
 
+        // If not, we show the login screen
+        // and find the fields, and connect the button
         setContentView(R.layout.activity_login);
-
         etPassword = findViewById(R.id.etPassword);
         btnLogin = findViewById(R.id.btnLogin);
-
-        btnLogin.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                loginUser();
-            }
-        });
+        btnLogin.setOnClickListener(view -> loginUser());
     }
 
     private void loginUser() {
 
+        // Get the password from the field, and compare it to the saved password
         String password = etPassword.getText().toString();
 
-
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-
         String savedPassword = prefs.getString("password", "");
 
         executor.execute(() -> {
@@ -60,6 +58,7 @@ public class LoginActivity extends AppCompatActivity {
 
                 if(success){
 
+                    // If password is correct, log in and open main screen
                     SharedPreferences.Editor editor = prefs.edit();
                     editor.putBoolean("isLoggedIn", true);
                     editor.apply();
@@ -69,7 +68,8 @@ public class LoginActivity extends AppCompatActivity {
                     startActivity(intent);
 
                 }else{
-                    Toast.makeText(this, "Invalid Login", Toast.LENGTH_SHORT).show();
+                    // Otherwise notify the user
+                    Toast.makeText(this, "Incorrect password", Toast.LENGTH_SHORT).show();
                 }
             });
         });

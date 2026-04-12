@@ -29,12 +29,16 @@ import java.util.concurrent.Executors;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
-
+/*
+The main class of the program, which keeps track of the currently saved credential items,
+logging the user out whenever the focus is lost on the application, and allowing for the deletion/insertion
+of credentials.
+ */
 public class MainActivity extends AppCompatActivity {
 
 
     // https://docs.spring.io/spring-security/site/docs/4.2.4.RELEASE/apidocs/org/springframework/security/crypto/bcrypt/BCryptPasswordEncoder.html
-    // Perhaps a map of (user, [credential]), requiring credential object etc.
+    // https://www.baeldung.com/java-aes-encryption-decryption
     ListView itemList;
     Button btnAddItem;
     String masterPassword;
@@ -47,7 +51,6 @@ public class MainActivity extends AppCompatActivity {
     String algorithm = "AES/GCM/NoPadding";
 
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +60,7 @@ public class MainActivity extends AppCompatActivity {
         itemList = findViewById(R.id.itemList);
         btnAddItem = findViewById(R.id.btnAddItem);
 
+        // Get the master password from preferences, to be used with encryption later on
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
         masterPassword = prefs.getString("password", "");
 
@@ -69,29 +73,24 @@ public class MainActivity extends AppCompatActivity {
             displayList.add(c.getWebsite() + " - " + c.getUsername());
         }
 
+        // Set the items on an adapter, which allows for runtime updating of the UI
         adapter = new ArrayAdapter<>(
                 this,
                 android.R.layout.simple_list_item_1,
                 displayList
         );
-
         itemList.setAdapter(adapter);
+
+        // Main functionality: hold to delete credentials, click to show full credentials
+        // and use add button to store more credentials.
         itemList.setOnItemLongClickListener((parent, view, position, id) -> {
             showDeleteDialog(position);
             return true;
         });
-
-        // this doesn't work for test items??
         itemList.setOnItemClickListener((parent, view, position, id) -> {
             showPasswordDialog(position);
         });
-
-        btnAddItem.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                addItem();
-            }
-        });
+        btnAddItem.setOnClickListener(view -> addItem());
     }
 
     private void addItem() {
@@ -100,6 +99,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void logOut(){
+
+        // Log out the user and open login screen
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
         editor.putBoolean("isLoggedIn", false);
@@ -112,8 +113,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void showPasswordDialog(String pass, Credentials creds) {
 
+        // Show the specified credentials
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
         builder.setTitle("Credentials for " + creds.getWebsite());
         builder.setMessage("Username: " + creds.getUsername() + "\nPassword: " +pass);
 
@@ -123,8 +124,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showPasswordDialog(int position){
-        Credentials creds = items.get(position);
 
+        // Decrypt the password for the credentials in the position of the click
+        Credentials creds = items.get(position);
         executor.execute(() ->{
 
             try {
@@ -137,13 +139,14 @@ public class MainActivity extends AppCompatActivity {
                 GCMParameterSpec iv = new GCMParameterSpec(128, ivBytes);
 
                 String decrypted = handler.decrypt(
-                        "AES/GCM/NoPadding",
+                        algorithm,
                         creds.getPassword(),
                         key,
                         iv
                 );
 
                 runOnUiThread(() ->{
+                    // And show them on a dialog
                     showPasswordDialog(decrypted, creds);
                 });
 
@@ -156,13 +159,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void showDeleteDialog(int position) {
 
+        // Show confirmation dialog for deleting the item
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
         builder.setTitle("Delete Item");
         builder.setMessage("Are you sure you want to delete this item?");
-
         builder.setPositiveButton("Delete", (dialog, which) -> {
 
+            // Remove the deleted item from all stored lists and save the new list
             items.remove(position);
             displayList.remove(position);
             saveItems();
@@ -177,6 +180,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void showAddItemDialog() {
 
+        // Show a dialog for adding items
+        // containing fields for website, username and password
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         LayoutInflater inflater = getLayoutInflater();
 
@@ -190,19 +195,20 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Add Credentials");
 
         builder.setPositiveButton("Add", (dialog, which) -> {
-            // Will need multithreading somewhere
 
+            // Get the given values and random salt
             String name = etSiteName.getText().toString();
             String info = etUserInfo.getText().toString();
             String password = etPassword.getText().toString();
-
             SecureRandom random = new SecureRandom();
             byte[] salt = new byte[16];
             random.nextBytes(salt);
 
             try {
-                key = handler.getKeyFromPassword(masterPassword, salt);
 
+                // Create secret key from master password
+                // and encrypt the password with given parameters
+                key = handler.getKeyFromPassword(masterPassword, salt);
                 GCMParameterSpec iv = handler.generateIv();
                 String cipher = handler.encrypt(algorithm, password, key, iv);
 
@@ -211,6 +217,8 @@ public class MainActivity extends AppCompatActivity {
                 creds.setIv(Base64.getEncoder().encodeToString(iv.getIV()));
                 creds.setSalt(Base64.getEncoder().encodeToString(salt));
 
+                // Add the new credential object to the list
+                // and save+load to update the storage
                 items.add(creds);
                 displayList.add(creds.getWebsite() + " - " + creds.getUsername());
                 saveItems();
@@ -218,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
                 adapter.notifyDataSetChanged();
 
             } catch (Exception e) {
-                // Possibly different toasts for different exceptions?
+                // In case of an error, display a notification
                 Toast.makeText(this, "An error occurred", Toast.LENGTH_SHORT).show();
             }
 
@@ -230,13 +238,15 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // Load the items from JSON into itemlist
     private void loadItems() {
+
+        // Load the items from preference JSON into itemlist
         SharedPreferences prefs = getSharedPreferences("ItemPrefs", MODE_PRIVATE);
 
         Gson gson = new Gson();
         String json = prefs.getString("item_list", null);
 
+        // If there was no stored JSON, create an empty list
         if (json != null) {
             Type type = new TypeToken<ArrayList<Credentials>>() {}.getType();
             items = gson.fromJson(json, type);
@@ -245,8 +255,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Save the password items as stringified JSON
     private void saveItems() {
+
+        // Save the credentials as stringified JSON
         SharedPreferences prefs = getSharedPreferences("ItemPrefs", MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
 
@@ -263,7 +274,6 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
         logOut();
     }
-
     @Override
     protected void onDestroy(){
         super.onDestroy();
