@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class SignUpActivity extends AppCompatActivity {
 
-    EditText etUsername, etPassword;
+    EditText etPassword;
     Button btnSignUp;
     PasswordHandler handler = new PasswordHandler();
 
@@ -26,14 +26,13 @@ public class SignUpActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
 
         // If user already exists → go to login
-        if (prefs.contains("username")) {
+        if (prefs.contains("password")) {
             startActivity(new Intent(this, LoginActivity.class));
             finish();
         }
 
         setContentView(R.layout.activity_sign_up);
 
-        etUsername = findViewById(R.id.etNewUsername);
         etPassword = findViewById(R.id.etNewPassword);
         btnSignUp = findViewById(R.id.btnSignUp);
 
@@ -42,7 +41,6 @@ public class SignUpActivity extends AppCompatActivity {
 
     private void signUpUser() {
 
-        String username = etUsername.getText().toString();
         String password = etPassword.getText().toString();
 
         executor.execute(() -> {
@@ -53,7 +51,6 @@ public class SignUpActivity extends AppCompatActivity {
                 SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
                 SharedPreferences.Editor editor = prefs.edit();
 
-                editor.putString("username", username);
                 editor.putString("password", encodedPassword);
                 editor.putBoolean("isLoggedIn", true);
                 editor.apply();

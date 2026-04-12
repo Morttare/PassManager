@@ -63,18 +63,6 @@ public class MainActivity extends AppCompatActivity {
         // Load items from storage/initialize if not found
         loadItems();
 
-        // does not add on first startup?? also cannot be seen with single press
-        // subsequent openings show this correctly as the first one and then indexing works
-        // on first startup shows the -1 index info when pressed
-        // needs to have some items before refreshing adds the test item??
-        // apparently they get added on startup but only visible once another item has been added
-        items.add(new Credentials("testsite", "testname", "testpass"));
-
-
-        // this fixes the visibility, not necessarily the indexing
-        saveItems();
-        loadItems();
-
         // Display the loaded items
         displayList = new ArrayList<>();
         for (Credentials c : items) {

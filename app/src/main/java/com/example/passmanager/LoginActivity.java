@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class LoginActivity extends AppCompatActivity {
 
-    EditText etUsername, etPassword;
+    EditText etPassword;
     Button btnLogin;
     PasswordHandler handler = new PasswordHandler();
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -33,7 +33,6 @@ public class LoginActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_login);
 
-        etUsername = findViewById(R.id.etUsername);
         etPassword = findViewById(R.id.etPassword);
         btnLogin = findViewById(R.id.btnLogin);
 
@@ -47,17 +46,15 @@ public class LoginActivity extends AppCompatActivity {
 
     private void loginUser() {
 
-        String username = etUsername.getText().toString();
         String password = etPassword.getText().toString();
 
 
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
 
-        String savedUsername = prefs.getString("username", "");
         String savedPassword = prefs.getString("password", "");
 
         executor.execute(() -> {
-            boolean success = username.equals(savedUsername) && handler.encoder.matches(password, savedPassword);
+            boolean success = handler.encoder.matches(password, savedPassword);
 
             runOnUiThread(() ->{
 
