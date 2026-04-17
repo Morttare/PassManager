@@ -161,8 +161,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Show confirmation dialog for deleting the item
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Delete Item");
-        builder.setMessage("Are you sure you want to delete this item?");
+        builder.setTitle("Delete Credentials");
+        builder.setMessage("Are you sure you want to delete credentials for " + items.get(position).getWebsite() + "?");
         builder.setPositiveButton("Delete", (dialog, which) -> {
 
             // Remove the deleted item from all stored lists and save the new list
