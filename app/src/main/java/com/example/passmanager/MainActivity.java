@@ -1,5 +1,6 @@
 package com.example.passmanager;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -49,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     SecretKey key;
     String algorithm = "AES/GCM/NoPadding";
+    Context context;
 
 
     @Override
@@ -59,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
         // Find the password list and add buttons
         itemList = findViewById(R.id.itemList);
         btnAddItem = findViewById(R.id.btnAddItem);
+        context = this;
 
         // Get the master password from preferences, to be used with encryption later on
         SharedPreferences prefs = getSharedPreferences("UserPrefs", MODE_PRIVATE);
@@ -151,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
                 });
 
             } catch (Exception e) {
-                e.printStackTrace();
+                Toast.makeText(context, "An error occurred", Toast.LENGTH_SHORT).show();
             }
 
         });
@@ -203,33 +206,36 @@ public class MainActivity extends AppCompatActivity {
             SecureRandom random = new SecureRandom();
             byte[] salt = new byte[16];
             random.nextBytes(salt);
+            executor.execute( () ->{
 
-            try {
 
-                // Create secret key from master password
-                // and encrypt the password with given parameters
-                key = handler.getKeyFromPassword(masterPassword, salt);
-                GCMParameterSpec iv = handler.generateIv();
-                String cipher = handler.encrypt(algorithm, password, key, iv);
+                try {
 
-                // Store credentials into object
-                Credentials creds = new Credentials(name, info, cipher);
-                creds.setIv(Base64.getEncoder().encodeToString(iv.getIV()));
-                creds.setSalt(Base64.getEncoder().encodeToString(salt));
+                    // Create secret key from master password
+                    // and encrypt the password with given parameters
+                    key = handler.getKeyFromPassword(masterPassword, salt);
+                    GCMParameterSpec iv = handler.generateIv();
+                    String cipher = handler.encrypt(algorithm, password, key, iv);
 
-                // Add the new credential object to the list
-                // and save+load to update the storage
-                items.add(creds);
-                displayList.add(creds.getWebsite() + " - " + creds.getUsername());
-                saveItems();
-                loadItems();
-                adapter.notifyDataSetChanged();
+                    // Store credentials into object
+                    Credentials creds = new Credentials(name, info, cipher);
+                    creds.setIv(Base64.getEncoder().encodeToString(iv.getIV()));
+                    creds.setSalt(Base64.getEncoder().encodeToString(salt));
 
-            } catch (Exception e) {
-                // In case of an error, display a notification
-                Toast.makeText(this, "An error occurred", Toast.LENGTH_SHORT).show();
-            }
-
+                    runOnUiThread(() ->{
+                        // Add the new credential object to the list
+                        // and save+load to update the storage
+                        items.add(creds);
+                        displayList.add(creds.getWebsite() + " - " + creds.getUsername());
+                        saveItems();
+                        loadItems();
+                        adapter.notifyDataSetChanged();
+                    });
+                } catch (Exception e) {
+                    // In case of an error, display a notification
+                    Toast.makeText(this, "An error occurred", Toast.LENGTH_SHORT).show();
+                }
+            });
 
         });
 

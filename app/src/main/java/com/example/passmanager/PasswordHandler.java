@@ -29,7 +29,7 @@ public class PasswordHandler {
             throws NoSuchAlgorithmException, InvalidKeySpecException {
 
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 65536, 256);
+        KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 600000, 256);
         return new SecretKeySpec(factory.generateSecret(spec)
                 .getEncoded(), "AES");
     }
